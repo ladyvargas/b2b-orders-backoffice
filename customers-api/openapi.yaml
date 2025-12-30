@@ -1,0 +1,429 @@
+openapi: 3.0.3
+info:
+  title: Customers API
+  version: 1.0.0
+  description: API para gestión de clientes (Backoffice B2B).
+servers:
+  - url: http://localhost:3001
+tags:
+  - name: Auth
+  - name: Customers
+  - name: Internal
+components:
+  securitySchemes:
+    BearerJWT:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    ServiceToken:
+      type: http
+      scheme: bearer
+      bearerFormat: SERVICE_TOKEN
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              example: CUSTOMER_NOT_FOUND
+            message:
+              type: string
+              example: El cliente 7 no existe
+            details:
+              nullable: true
+          required: [code, message]
+      required: [error]
+    TokenRequest:
+      type: object
+      properties:
+        sub:
+          type: string
+          example: operator
+      required: [sub]
+    TokenResponse:
+      type: object
+      properties:
+        token:
+          type: string
+      required: [token]
+    CustomerCreate:
+      type: object
+      properties:
+        name:
+          type: string
+          example: ACME Corp
+        email:
+          type: string
+          example: ops@acme.com
+        phone:
+          type: string
+          example: "+593999111222"
+      required: [name, email]
+    CustomerUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          example: ACME Corp Updated
+        email:
+          type: string
+          example: ops2@acme.com
+        phone:
+          type: string
+          example: "+593999111223"
+    Customer:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 7
+        name:
+          type: string
+          example: ACME Corp
+        email:
+          type: string
+          example: ops@acme.com
+        phone:
+          type: string
+          nullable: true
+          example: "+593999111222"
+        created_at:
+          type: string
+          format: date-time
+          example: "2025-12-29T22:51:58.000Z"
+      required: [id, name, email, created_at]
+    CustomerInternal:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 7
+        name:
+          type: string
+          example: ACME Corp
+        email:
+          type: string
+          example: ops@acme.com
+        phone:
+          type: string
+          nullable: true
+          example: "+593999111222"
+      required: [id, name, email]
+    CustomerListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Customer"
+        next_cursor:
+          type: integer
+          nullable: true
+          example: 10
+      required: [data, next_cursor]
+
+paths:
+  /health:
+    get:
+      tags: [Customers]
+      summary: Healthcheck
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: true
+
+  /auth/token:
+    post:
+      tags: [Auth]
+      summary: Generar token JWT (operador)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TokenRequest"
+            examples:
+              operador:
+                value:
+                  sub: operator
+      responses:
+        "200":
+          description: Token generado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TokenResponse"
+        "400":
+          description: Request inválido
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /customers:
+    post:
+      tags: [Customers]
+      summary: Crear cliente
+      security:
+        - BearerJWT: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CustomerCreate"
+            examples:
+              ejemplo:
+                value:
+                  name: ACME Corp
+                  email: ops@acme.com
+                  phone: "+593999111222"
+      responses:
+        "201":
+          description: Cliente creado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Customer"
+        "400":
+          description: Validación
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: No autorizado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Email duplicado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    get:
+      tags: [Customers]
+      summary: Listar/Búsqueda con cursor
+      security:
+        - BearerJWT: []
+      parameters:
+        - in: query
+          name: search
+          schema:
+            type: string
+          example: acme
+        - in: query
+          name: cursor
+          schema:
+            type: integer
+            minimum: 0
+          example: 0
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+          example: 20
+      responses:
+        "200":
+          description: Lista de clientes
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CustomerListResponse"
+        "400":
+          description: Parámetros inválidos
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: No autorizado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /customers/{id}:
+    get:
+      tags: [Customers]
+      summary: Obtener cliente por id
+      security:
+        - BearerJWT: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Cliente
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Customer"
+        "400":
+          description: Id inválido
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: No autorizado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: No existe
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    put:
+      tags: [Customers]
+      summary: Actualizar cliente
+      security:
+        - BearerJWT: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CustomerUpdate"
+            examples:
+              ejemplo:
+                value:
+                  phone: "+593999111223"
+      responses:
+        "200":
+          description: Cliente actualizado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Customer"
+        "400":
+          description: Validación
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: No autorizado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: No existe
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Email duplicado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    delete:
+      tags: [Customers]
+      summary: Eliminar cliente (hard delete o soft delete según implementación)
+      security:
+        - BearerJWT: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Eliminado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+        "400":
+          description: Id inválido
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: No autorizado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: No existe
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /internal/customers/{id}:
+    get:
+      tags: [Internal]
+      summary: Obtener cliente por id (uso interno Orders/Lambda)
+      security:
+        - ServiceToken: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Cliente interno
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CustomerInternal"
+        "400":
+          description: Id inválido
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: No autorizado (SERVICE_TOKEN inválido)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: No existe
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"

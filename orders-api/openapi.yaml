@@ -1,0 +1,632 @@
+openapi: 3.0.3
+info:
+  title: Orders API
+  version: 1.0.0
+  description: API para gestión de productos, stock y órdenes (Backoffice B2B).
+servers:
+  - url: http://localhost:3002
+tags:
+  - name: Products
+  - name: Orders
+components:
+  securitySchemes:
+    BearerJWT:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    ServiceToken:
+      type: http
+      scheme: bearer
+      bearerFormat: SERVICE_TOKEN
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              example: PRODUCT_NOT_FOUND
+            message:
+              type: string
+              example: El producto 10 no existe
+            details:
+              nullable: true
+          required: [code, message]
+      required: [error]
+
+    ProductCreate:
+      type: object
+      properties:
+        sku:
+          type: string
+          example: SKU-001
+        name:
+          type: string
+          example: Producto Demo
+        price_cents:
+          type: integer
+          example: 129900
+        stock:
+          type: integer
+          example: 10
+      required: [sku, name, price_cents, stock]
+
+    ProductPatch:
+      type: object
+      properties:
+        name:
+          type: string
+          example: Producto Demo Actualizado
+        price_cents:
+          type: integer
+          example: 139900
+        stock:
+          type: integer
+          example: 15
+
+    Product:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 2
+        sku:
+          type: string
+          example: SKU-001
+        name:
+          type: string
+          example: Producto Demo
+        price_cents:
+          type: integer
+          example: 129900
+        stock:
+          type: integer
+          example: 10
+        created_at:
+          type: string
+          format: date-time
+      required: [id, sku, name, price_cents, stock]
+
+    ProductListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Product"
+        next_cursor:
+          type: integer
+          nullable: true
+      required: [data, next_cursor]
+
+    OrderCreate:
+      type: object
+      properties:
+        customer_id:
+          type: integer
+          example: 1
+        items:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            properties:
+              product_id:
+                type: integer
+                example: 2
+              qty:
+                type: integer
+                example: 3
+            required: [product_id, qty]
+      required: [customer_id, items]
+
+    OrderItem:
+      type: object
+      properties:
+        product_id:
+          type: integer
+          example: 2
+        qty:
+          type: integer
+          example: 3
+        unit_price_cents:
+          type: integer
+          example: 129900
+        subtotal_cents:
+          type: integer
+          example: 389700
+      required: [product_id, qty, unit_price_cents, subtotal_cents]
+
+    Order:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 101
+        customer_id:
+          type: integer
+          example: 1
+        status:
+          type: string
+          enum: [CREATED, CONFIRMED, CANCELED]
+          example: CREATED
+        total_cents:
+          type: integer
+          example: 459900
+        created_at:
+          type: string
+          format: date-time
+      required: [id, customer_id, status, total_cents]
+
+    OrderWithItems:
+      allOf:
+        - $ref: "#/components/schemas/Order"
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/OrderItem"
+          required: [items]
+
+    ConfirmResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            id:
+              type: integer
+              example: 101
+            status:
+              type: string
+              example: CONFIRMED
+            total_cents:
+              type: integer
+              example: 459900
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/OrderItem"
+          required: [id, status, total_cents, items]
+      required: [success, data]
+
+paths:
+  /health:
+    get:
+      tags: [Orders]
+      summary: Healthcheck
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: true
+
+  /products:
+    post:
+      tags: [Products]
+      summary: Crear producto
+      security:
+        - BearerJWT: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProductCreate"
+            examples:
+              ejemplo:
+                value:
+                  sku: SKU-001
+                  name: Producto Demo
+                  price_cents: 129900
+                  stock: 10
+      responses:
+        "201":
+          description: Producto creado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+        "400":
+          description: Validación
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: No autorizado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: SKU duplicado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    get:
+      tags: [Products]
+      summary: Listar/Búsqueda productos con cursor
+      security:
+        - BearerJWT: []
+      parameters:
+        - in: query
+          name: search
+          schema:
+            type: string
+          example: demo
+        - in: query
+          name: cursor
+          schema:
+            type: integer
+            minimum: 0
+          example: 0
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+          example: 20
+      responses:
+        "200":
+          description: Lista de productos
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductListResponse"
+        "400":
+          description: Parámetros inválidos
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: No autorizado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /products/{id}:
+    get:
+      tags: [Products]
+      summary: Obtener producto por id
+      security:
+        - BearerJWT: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Producto
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+        "400":
+          description: Id inválido
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: No autorizado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: No existe
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    patch:
+      tags: [Products]
+      summary: Actualizar producto (precio/stock)
+      security:
+        - BearerJWT: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProductPatch"
+            examples:
+              actualizar_stock:
+                value:
+                  stock: 25
+      responses:
+        "200":
+          description: Producto actualizado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+        "400":
+          description: Validación
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: No autorizado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: No existe
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /orders:
+    post:
+      tags: [Orders]
+      summary: Crear orden (valida cliente, verifica stock, transacción, descuenta stock)
+      security:
+        - BearerJWT: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OrderCreate"
+            examples:
+              ejemplo:
+                value:
+                  customer_id: 2
+                  items:
+                    - product_id: 1
+                      qty: 2
+      responses:
+        "201":
+          description: Orden creada (CREATED)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        "400":
+          description: Validación / Reglas
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: No autorizado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Cliente/Producto no existe
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Stock insuficiente
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    get:
+      tags: [Orders]
+      summary: Listar órdenes con filtros y cursor
+      security:
+        - BearerJWT: []
+      parameters:
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [CREATED, CONFIRMED, CANCELED]
+        - in: query
+          name: from
+          schema:
+            type: string
+            format: date-time
+        - in: query
+          name: to
+          schema:
+            type: string
+            format: date-time
+        - in: query
+          name: cursor
+          schema:
+            type: integer
+            minimum: 0
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+      responses:
+        "200":
+          description: Lista de órdenes
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Order"
+                  next_cursor:
+                    type: integer
+                    nullable: true
+                required: [data, next_cursor]
+        "400":
+          description: Parámetros inválidos
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: No autorizado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /orders/{id}:
+    get:
+      tags: [Orders]
+      summary: Obtener orden por id (incluye items)
+      security:
+        - BearerJWT: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Orden con items
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrderWithItems"
+        "400":
+          description: Id inválido
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: No autorizado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: No existe
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /orders/{id}/confirm:
+    post:
+      tags: [Orders]
+      summary: Confirmar orden (idempotente por X-Idempotency-Key)
+      security:
+        - BearerJWT: []
+      parameters:
+        - in: header
+          name: X-Idempotency-Key
+          required: true
+          schema:
+            type: string
+          example: abc-123
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Confirmación OK (si reintentas con la misma key, devuelve lo mismo)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConfirmResponse"
+        "400":
+          description: Validación / falta key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: No autorizado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: No confirmable por estado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: No existe
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /orders/{id}/cancel:
+    post:
+      tags: [Orders]
+      summary: Cancelar orden (CREATED siempre; CONFIRMED solo dentro de 10 minutos)
+      security:
+        - BearerJWT: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Cancelada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrderWithItems"
+        "400":
+          description: Id inválido
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: No autorizado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: No cancelable por regla 10 min
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: No existe
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
