@@ -104,8 +104,7 @@ r.get("/products", authJwt, async (req, res, next) => {
       params.push(term, term);
     }
 
-    sql += ` ORDER BY id LIMIT ?`;
-    params.push(limit);
+    sql += ` ORDER BY id LIMIT ${limit}`;
 
     const [rows] = await pool.execute(sql, params);
 

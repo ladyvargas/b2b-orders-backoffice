@@ -75,15 +75,15 @@ r.get("/customers/:id", authJwt, async (req, res, next) => {
 r.get("/customers", authJwt, async (req, res, next) => {
   try {
     const search = (req.query.search || "").trim();
-    const cursor = Number(req.query.cursor || 0);
-    const limit = Number(req.query.limit || 20);
+    const cursor = req.query.cursor ? Number(req.query.cursor) : 0;
+    const limit  = req.query.limit  ? Number(req.query.limit)  : 20;
 
-    if (!Number.isFinite(cursor) || cursor < 0) {
-      return next(badRequest("INVALID_CURSOR", "El parámetro cursor es inválido"));
+    if (Number.isNaN(cursor) || cursor < 0) {
+      return next(badRequest("INVALID_CURSOR", "Cursor inválido"));
     }
 
-    if (!Number.isFinite(limit) || limit <= 0 || limit > 100) {
-      return next(badRequest("INVALID_LIMIT", "El parámetro limit debe estar entre 1 y 100"));
+    if (Number.isNaN(limit) || limit <= 0 || limit > 100) {
+      return next(badRequest("INVALID_LIMIT", "Limit inválido"));
     }
 
     let sql = `
@@ -94,24 +94,29 @@ r.get("/customers", authJwt, async (req, res, next) => {
     const params = [cursor];
 
     if (search) {
-      sql += ` AND (name LIKE ? OR email LIKE ? OR phone LIKE ?)`;
+      sql += `
+        AND (name LIKE ? OR email LIKE ? OR phone LIKE ?)
+      `;
       const term = `%${search}%`;
       params.push(term, term, term);
     }
 
-    sql += ` ORDER BY id LIMIT ?`;
-    params.push(limit);
+    sql += `
+      ORDER BY id
+      LIMIT ${limit}
+    `;
 
     const [rows] = await pool.execute(sql, params);
 
-    res.json({
+    return res.json({
       data: rows,
       next_cursor: rows.length ? rows[rows.length - 1].id : null
     });
   } catch (e) {
-    next(e);
+    return next(e);
   }
 });
+
 
 r.put("/customers/:id", authJwt, async (req, res, next) => {
   try {
