@@ -1,0 +1,593 @@
+{
+	"info": {
+		"_postman_id": "5732f7bd-d822-45d9-88da-326c94a57620",
+		"name": "B2B Orders Backoffice",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "9687343"
+	},
+	"item": [
+		{
+			"name": "Customers API",
+			"item": [
+				{
+					"name": "Health",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{CUSTOMERS_BASE_URL}}/health",
+							"host": [
+								"{{CUSTOMERS_BASE_URL}}"
+							],
+							"path": [
+								"health"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Auth - Token",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"const json = pm.response.json();",
+									"if (json && json.token) {",
+									"  pm.collectionVariables.set('JWT_TOKEN', json.token);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"sub\": \"operator\"\n}"
+						},
+						"url": {
+							"raw": "{{CUSTOMERS_BASE_URL}}/auth/token",
+							"host": [
+								"{{CUSTOMERS_BASE_URL}}"
+							],
+							"path": [
+								"auth",
+								"token"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Customer",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{JWT_TOKEN}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"ACME Corp\",\n  \"email\": \"ops@acme.com\",\n  \"phone\": \"+593999111222\"\n}"
+						},
+						"url": {
+							"raw": "{{CUSTOMERS_BASE_URL}}/customers",
+							"host": [
+								"{{CUSTOMERS_BASE_URL}}"
+							],
+							"path": [
+								"customers"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Customer",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{JWT_TOKEN}}"
+							}
+						],
+						"url": {
+							"raw": "{{CUSTOMERS_BASE_URL}}/customers/{{CUSTOMER_ID}}",
+							"host": [
+								"{{CUSTOMERS_BASE_URL}}"
+							],
+							"path": [
+								"customers",
+								"{{CUSTOMER_ID}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Search Customers",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{JWT_TOKEN}}"
+							}
+						],
+						"url": {
+							"raw": "{{CUSTOMERS_BASE_URL}}/customers?search=acme&cursor=0&limit=20",
+							"host": [
+								"{{CUSTOMERS_BASE_URL}}"
+							],
+							"path": [
+								"customers"
+							],
+							"query": [
+								{
+									"key": "search",
+									"value": "acme"
+								},
+								{
+									"key": "cursor",
+									"value": "0"
+								},
+								{
+									"key": "limit",
+									"value": "20"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Customer",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{JWT_TOKEN}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"phone\": \"+593999111223\"\n}"
+						},
+						"url": {
+							"raw": "{{CUSTOMERS_BASE_URL}}/customers/{{CUSTOMER_ID}}",
+							"host": [
+								"{{CUSTOMERS_BASE_URL}}"
+							],
+							"path": [
+								"customers",
+								"{{CUSTOMER_ID}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Customer",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{JWT_TOKEN}}"
+							}
+						],
+						"url": {
+							"raw": "{{CUSTOMERS_BASE_URL}}/customers/{{CUSTOMER_ID}}",
+							"host": [
+								"{{CUSTOMERS_BASE_URL}}"
+							],
+							"path": [
+								"customers",
+								"{{CUSTOMER_ID}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Internal - Get Customer (SERVICE_TOKEN)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{SERVICE_TOKEN}}"
+							}
+						],
+						"url": {
+							"raw": "{{CUSTOMERS_BASE_URL}}/internal/customers/{{CUSTOMER_ID}}",
+							"host": [
+								"{{CUSTOMERS_BASE_URL}}"
+							],
+							"path": [
+								"internal",
+								"customers",
+								"{{CUSTOMER_ID}}"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Orders API",
+			"item": [
+				{
+					"name": "Health",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{ORDERS_BASE_URL}}/health",
+							"host": [
+								"{{ORDERS_BASE_URL}}"
+							],
+							"path": [
+								"health"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Product",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{JWT_TOKEN}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"sku\": \"SKU-001\",\n  \"name\": \"Producto Demo\",\n  \"price_cents\": 129900,\n  \"stock\": 10\n}"
+						},
+						"url": {
+							"raw": "{{ORDERS_BASE_URL}}/products",
+							"host": [
+								"{{ORDERS_BASE_URL}}"
+							],
+							"path": [
+								"products"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Product",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{JWT_TOKEN}}"
+							}
+						],
+						"url": {
+							"raw": "{{ORDERS_BASE_URL}}/products/{{PRODUCT_ID}}",
+							"host": [
+								"{{ORDERS_BASE_URL}}"
+							],
+							"path": [
+								"products",
+								"{{PRODUCT_ID}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "List Products",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{JWT_TOKEN}}"
+							}
+						],
+						"url": {
+							"raw": "{{ORDERS_BASE_URL}}/products?search=sku&cursor=0&limit=20",
+							"host": [
+								"{{ORDERS_BASE_URL}}"
+							],
+							"path": [
+								"products"
+							],
+							"query": [
+								{
+									"key": "search",
+									"value": "sku"
+								},
+								{
+									"key": "cursor",
+									"value": "0"
+								},
+								{
+									"key": "limit",
+									"value": "20"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Patch Product",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{JWT_TOKEN}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"stock\": 25\n}"
+						},
+						"url": {
+							"raw": "{{ORDERS_BASE_URL}}/products/{{PRODUCT_ID}}",
+							"host": [
+								"{{ORDERS_BASE_URL}}"
+							],
+							"path": [
+								"products",
+								"{{PRODUCT_ID}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Order",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{JWT_TOKEN}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"customer_id\": {{CUSTOMER_ID}},\n  \"items\": [\n    { \"product_id\": {{PRODUCT_ID}}, \"qty\": 2 }\n  ]\n}"
+						},
+						"url": {
+							"raw": "{{ORDERS_BASE_URL}}/orders",
+							"host": [
+								"{{ORDERS_BASE_URL}}"
+							],
+							"path": [
+								"orders"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Order (with items)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{JWT_TOKEN}}"
+							}
+						],
+						"url": {
+							"raw": "{{ORDERS_BASE_URL}}/orders/{{ORDER_ID}}",
+							"host": [
+								"{{ORDERS_BASE_URL}}"
+							],
+							"path": [
+								"orders",
+								"{{ORDER_ID}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "List Orders",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{JWT_TOKEN}}"
+							}
+						],
+						"url": {
+							"raw": "{{ORDERS_BASE_URL}}/orders?status=CREATED&cursor=0&limit=20",
+							"host": [
+								"{{ORDERS_BASE_URL}}"
+							],
+							"path": [
+								"orders"
+							],
+							"query": [
+								{
+									"key": "status",
+									"value": "CREATED"
+								},
+								{
+									"key": "cursor",
+									"value": "0"
+								},
+								{
+									"key": "limit",
+									"value": "20"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Confirm Order (Idempotent)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{JWT_TOKEN}}"
+							},
+							{
+								"key": "X-Idempotency-Key",
+								"value": "{{IDEMPOTENCY_KEY}}"
+							}
+						],
+						"url": {
+							"raw": "{{ORDERS_BASE_URL}}/orders/{{ORDER_ID}}/confirm",
+							"host": [
+								"{{ORDERS_BASE_URL}}"
+							],
+							"path": [
+								"orders",
+								"{{ORDER_ID}}",
+								"confirm"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Cancel Order",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{JWT_TOKEN}}"
+							}
+						],
+						"url": {
+							"raw": "{{ORDERS_BASE_URL}}/orders/{{ORDER_ID}}/cancel",
+							"host": [
+								"{{ORDERS_BASE_URL}}"
+							],
+							"path": [
+								"orders",
+								"{{ORDER_ID}}",
+								"cancel"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Lambda Orchestrator",
+			"item": [
+				{
+					"name": "Create and Confirm Order",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"customer_id\": {{CUSTOMER_ID}},\n  \"items\": [\n    { \"product_id\": {{PRODUCT_ID}}, \"qty\": 2 }\n  ],\n  \"idempotency_key\": \"{{IDEMPOTENCY_KEY}}\",\n  \"correlation_id\": \"req-789\"\n}"
+						},
+						"url": {
+							"raw": "{{LAMBDA_BASE_URL}}/orchestrator/create-and-confirm-order",
+							"host": [
+								"{{LAMBDA_BASE_URL}}"
+							],
+							"path": [
+								"orchestrator",
+								"create-and-confirm-order"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"variable": [
+		{
+			"key": "CUSTOMERS_BASE_URL",
+			"value": "http://localhost:3001"
+		},
+		{
+			"key": "ORDERS_BASE_URL",
+			"value": "http://localhost:3002"
+		},
+		{
+			"key": "LAMBDA_BASE_URL",
+			"value": "http://localhost:3003"
+		},
+		{
+			"key": "SERVICE_TOKEN",
+			"value": "super-secret-service-token"
+		},
+		{
+			"key": "JWT_TOKEN",
+			"value": ""
+		},
+		{
+			"key": "CUSTOMER_ID",
+			"value": "2"
+		},
+		{
+			"key": "PRODUCT_ID",
+			"value": "1"
+		},
+		{
+			"key": "ORDER_ID",
+			"value": "1"
+		},
+		{
+			"key": "IDEMPOTENCY_KEY",
+			"value": "abc-123"
+		}
+	]
+}

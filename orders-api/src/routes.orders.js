@@ -4,7 +4,13 @@ const jwt = require("jsonwebtoken");
 const { pool } = require("./db");
 const { cfg } = require("./config");
 const { authJwt } = require("./auth");
-const { badRequest, notFound, conflict, forbidden, unauthorized } = require("./errors");
+const {
+  badRequest,
+  notFound,
+  conflict,
+  forbidden,
+  unauthorized,
+} = require("./errors");
 const { orderCreateSchema } = require("./validators");
 
 const r = express.Router();
@@ -25,7 +31,8 @@ function authAny(req, res, next) {
   const h = req.headers.authorization || "";
   const [type, token] = h.split(" ");
 
-  if (type !== "Bearer" || !token) return next(unauthorized("UNAUTHORIZED", "No autorizado"));
+  if (type !== "Bearer" || !token)
+    return next(unauthorized("UNAUTHORIZED", "No autorizado"));
 
   if (token === cfg.serviceToken) return next();
 
@@ -103,13 +110,19 @@ r.post("/orders", authAny, async (req, res, next) => {
 
         await conn.execute(
           "INSERT INTO order_items (order_id, product_id, qty, unit_price_cents, subtotal_cents) VALUES (?,?,?,?,?)",
-          [orderRes.insertId, it.product_id, it.qty, prod.price_cents, prod.price_cents * it.qty]
+          [
+            orderRes.insertId,
+            it.product_id,
+            it.qty,
+            prod.price_cents,
+            prod.price_cents * it.qty,
+          ]
         );
 
-        await conn.execute(
-          "UPDATE products SET stock=stock-? WHERE id=?",
-          [it.qty, it.product_id]
-        );
+        await conn.execute("UPDATE products SET stock=stock-? WHERE id=?", [
+          it.qty,
+          it.product_id,
+        ]);
       }
 
       await conn.commit();
@@ -117,7 +130,7 @@ r.post("/orders", authAny, async (req, res, next) => {
       return res.status(201).json({
         id: orderRes.insertId,
         status: "CREATED",
-        total_cents: total
+        total_cents: total,
       });
     } catch (e) {
       await conn.rollback();
@@ -158,9 +171,10 @@ r.post("/orders/:id/confirm", authAny, async (req, res, next) => {
 
       if (existing) {
         await conn.commit();
-        const body = typeof existing.response_body === "string"
-          ? JSON.parse(existing.response_body)
-          : existing.response_body;
+        const body =
+          typeof existing.response_body === "string"
+            ? JSON.parse(existing.response_body)
+            : existing.response_body;
         return res.status(200).json(body);
       }
 
@@ -171,7 +185,9 @@ r.post("/orders/:id/confirm", authAny, async (req, res, next) => {
 
       if (!order) {
         await conn.rollback();
-        return next(notFound("ORDER_NOT_FOUND", `La orden ${orderId} no existe`));
+        return next(
+          notFound("ORDER_NOT_FOUND", `La orden ${orderId} no existe`)
+        );
       }
 
       if (order.status === "CONFIRMED") {
@@ -186,8 +202,8 @@ r.post("/orders/:id/confirm", authAny, async (req, res, next) => {
             id: orderId,
             status: "CONFIRMED",
             total_cents: order.total_cents,
-            items
-          }
+            items,
+          },
         };
 
         await conn.execute(
@@ -209,10 +225,9 @@ r.post("/orders/:id/confirm", authAny, async (req, res, next) => {
         );
       }
 
-      await conn.execute(
-        "UPDATE orders SET status='CONFIRMED' WHERE id=?",
-        [orderId]
-      );
+      await conn.execute("UPDATE orders SET status='CONFIRMED' WHERE id=?", [
+        orderId,
+      ]);
 
       const [items] = await conn.execute(
         "SELECT product_id, qty, unit_price_cents, subtotal_cents FROM order_items WHERE order_id=?",
@@ -225,8 +240,8 @@ r.post("/orders/:id/confirm", authAny, async (req, res, next) => {
           id: orderId,
           status: "CONFIRMED",
           total_cents: order.total_cents,
-          items
-        }
+          items,
+        },
       };
 
       await conn.execute(
@@ -242,6 +257,151 @@ r.post("/orders/:id/confirm", authAny, async (req, res, next) => {
     } finally {
       conn.release();
     }
+  } catch (e) {
+    return next(e);
+  }
+});
+
+r.post("/orders/:id/cancel", authAny, async (req, res, next) => {
+  const id = Number(req.params.id);
+  if (!Number.isFinite(id)) {
+    return next(badRequest("INVALID_ID", "El id de la orden es inválido"));
+  }
+
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+
+    const [[order]] = await conn.execute(
+      "SELECT status, created_at FROM orders WHERE id=? FOR UPDATE",
+      [id]
+    );
+
+    if (!order) {
+      await conn.rollback();
+      return next(notFound("ORDER_NOT_FOUND", `La orden ${id} no existe`));
+    }
+
+    if (order.status === "CANCELED") {
+      await conn.rollback();
+      return res.json({ success: true, status: "CANCELED" });
+    }
+
+    await conn.execute("UPDATE orders SET status='CANCELED' WHERE id=?", [id]);
+
+    const [items] = await conn.execute(
+      "SELECT product_id, qty FROM order_items WHERE order_id=?",
+      [id]
+    );
+
+    for (const it of items) {
+      await conn.execute("UPDATE products SET stock=stock+? WHERE id=?", [
+        it.qty,
+        it.product_id,
+      ]);
+    }
+
+    await conn.commit();
+    res.json({ success: true, status: "CANCELED" });
+  } catch (e) {
+    await conn.rollback();
+    next(e);
+  } finally {
+    conn.release();
+  }
+});
+
+r.get("/orders/:id", authAny, async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id)) {
+      return next(badRequest("INVALID_ID", "El id de la orden es inválido"));
+    }
+
+    const [[order]] = await pool.execute(
+      "SELECT id, customer_id, status, total_cents, created_at FROM orders WHERE id=?",
+      [id]
+    );
+
+    if (!order) {
+      return next(notFound("ORDER_NOT_FOUND", `La orden ${id} no existe`));
+    }
+
+    const [items] = await pool.execute(
+      "SELECT product_id, qty, unit_price_cents, subtotal_cents FROM order_items WHERE order_id=?",
+      [id]
+    );
+
+    res.json({ ...order, items });
+  } catch (e) {
+    next(e);
+  }
+});
+
+r.get("/orders", authAny, async (req, res, next) => {
+  try {
+    const status = (req.query.status || "").trim().toUpperCase();
+    const from = (req.query.from || "").trim();
+    const to = (req.query.to || "").trim();
+    const cursor = Number(req.query.cursor || 0);
+    const limit = Number(req.query.limit || 20);
+
+    if (!Number.isFinite(cursor) || cursor < 0) {
+      return next(
+        badRequest("INVALID_CURSOR", "El parámetro cursor es inválido")
+      );
+    }
+
+    if (!Number.isFinite(limit) || limit <= 0 || limit > 100) {
+      return next(
+        badRequest(
+          "INVALID_LIMIT",
+          "El parámetro limit debe estar entre 1 y 100"
+        )
+      );
+    }
+
+    const allowedStatus = ["CREATED", "CONFIRMED", "CANCELED"];
+    if (status && !allowedStatus.includes(status)) {
+      return next(
+        badRequest(
+          "INVALID_STATUS",
+          "El parámetro status debe ser CREATED, CONFIRMED o CANCELED"
+        )
+      );
+    }
+
+    let sql = `
+      SELECT id, customer_id, status, total_cents, created_at
+      FROM orders
+      WHERE id > ?
+    `;
+    const params = [cursor];
+
+    if (status) {
+      sql += ` AND status = ?`;
+      params.push(status);
+    }
+
+    if (from) {
+      sql += ` AND created_at >= ?`;
+      params.push(from);
+    }
+
+    if (to) {
+      sql += ` AND created_at <= ?`;
+      params.push(to);
+    }
+
+    sql += ` ORDER BY id LIMIT ?`;
+    params.push(limit);
+
+    const [rows] = await pool.execute(sql, params);
+
+    return res.json({
+      data: rows,
+      next_cursor: rows.length ? rows[rows.length - 1].id : null,
+    });
   } catch (e) {
     return next(e);
   }

@@ -75,41 +75,41 @@ r.get("/customers/:id", authJwt, async (req, res, next) => {
 r.get("/customers", authJwt, async (req, res, next) => {
   try {
     const search = (req.query.search || "").trim();
-    const limit = Number(req.query.limit || 20);
     const cursor = Number(req.query.cursor || 0);
-
-    if (!Number.isFinite(limit) || limit <= 0 || limit > 100) {
-      return next(
-        badRequest("INVALID_LIMIT", "El parámetro limit debe estar entre 1 y 100")
-      );
-    }
+    const limit = Number(req.query.limit || 20);
 
     if (!Number.isFinite(cursor) || cursor < 0) {
-      return next(
-        badRequest("INVALID_CURSOR", "El parámetro cursor es inválido")
-      );
+      return next(badRequest("INVALID_CURSOR", "El parámetro cursor es inválido"));
     }
 
-    const term = `%${search}%`;
+    if (!Number.isFinite(limit) || limit <= 0 || limit > 100) {
+      return next(badRequest("INVALID_LIMIT", "El parámetro limit debe estar entre 1 y 100"));
+    }
 
-    const [rows] = await pool.execute(
-      `
+    let sql = `
       SELECT id, name, email, phone, created_at
       FROM customers
       WHERE id > ?
-        AND (? = '' OR name LIKE ? OR email LIKE ? OR phone LIKE ?)
-      ORDER BY id
-      LIMIT ?
-      `,
-      [cursor, search, term, term, term, limit]
-    );
+    `;
+    const params = [cursor];
 
-    return res.json({
+    if (search) {
+      sql += ` AND (name LIKE ? OR email LIKE ? OR phone LIKE ?)`;
+      const term = `%${search}%`;
+      params.push(term, term, term);
+    }
+
+    sql += ` ORDER BY id LIMIT ?`;
+    params.push(limit);
+
+    const [rows] = await pool.execute(sql, params);
+
+    res.json({
       data: rows,
       next_cursor: rows.length ? rows[rows.length - 1].id : null
     });
   } catch (e) {
-    return next(e);
+    next(e);
   }
 });
 

@@ -75,8 +75,8 @@ OpenAPI: `customers-api/openapi.yaml`
 |------|---------|-------|
 | POST | /products | OK |
 | GET | /products/:id | OK |
-| GET | /products | Parcial |
-| PATCH | /products/:id | Parcial |
+| GET | /products | OK |
+| PATCH | /products/:id | OK |
 
 ### Órdenes
 
@@ -84,9 +84,9 @@ OpenAPI: `customers-api/openapi.yaml`
 |------|---------|-------|
 | POST | /orders | OK |
 | POST | /orders/:id/confirm | OK (idempotente) |
-| GET | /orders/:id | Parcial |
-| GET | /orders | Parcial |
-| POST | /orders/:id/cancel | Parcial |
+| GET | /orders/:id | OK |
+| GET | /orders | OK |
+| POST | /orders/:id/cancel | OK |
 
 OpenAPI: `orders-api/openapi.yaml`
 
